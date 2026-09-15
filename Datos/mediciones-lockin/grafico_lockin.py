@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import least_squares
+from scipy.optimize import curve_fit
 
 ARCHIVOS = ['barrido_lockin', 'barrido_lockin_fino', 'barrido_lockin_fino_fino']
 R_r = 10e3  # Resistencia de carga fija [Ω]
@@ -14,6 +15,41 @@ bounds_physical = (
     np.array([1e2, 1e-1, 1e-15, 1e-15, 1e-12]),
     np.array([1e6, 1e4, 1e-9, 1e-9, 1e-6])
 )
+def modelo_log(f, R_ohm, L_H, C_pF, C2_pF, R2_val=10e3):
+    R = R_ohm
+    L = L_H
+    C = C_pF * 1e-12
+    C2 = C2_pF * 1e-12
+    
+    w = 2 * np.pi * f
+    
+    # Admitancias
+    Y_m = 1.0 / (R + 1j * (w * L - 1.0 / (w * C)))
+    Y_p = 1j * w * C2
+    
+    Y_pzt = Y_m + Y_p
+    T = (R2_val * Y_pzt) / (1.0 + R2_val * Y_pzt)
+    
+    # Retornamos log10 para igualar el peso de residuos
+    return np.log10(np.abs(T))
+
+def modelo_fase(f, R_ohm, L_H, C_pF, C2_pF, R2_val=10e3):
+    R = R_ohm
+    L = L_H
+    C = C_pF * 1e-12
+    C2 = C2_pF * 1e-12
+    
+    w = 2 * np.pi * f
+    
+    # Admitancias
+    Y_m = 1.0 / (R + 1j * (w * L - 1.0 / (w * C)))
+    Y_p = 1j * w * C2
+    
+    Y_pzt = Y_m + Y_p
+    T = (R2_val * Y_pzt) / (1.0 + R2_val * Y_pzt)
+    
+    # Retornamos la fase en radianes
+    return np.angle(T)
 
 def transfer_complex(omega, R, L, C, C2, R_r, C_r):
     """Función de transferencia compleja H(ω) = z_r / (z + z_r)"""
@@ -64,9 +100,9 @@ def calculate_errors(result, p_values):
 def format_with_error(value, error):
     """Formatea un valor con su error redondeado a 2 cifras significativas"""
     if np.isinf(error) or np.isnan(error):
-        return f"{value:.6e} ± ∞"
+        return f"{value:.6e} +/- inf"
     if error == 0:
-        return f"{value:.6e} ± 0"
+        return f"{value:.6e} +/- 0"
     
     # Redondear error a 2 cifras significativas
     order = np.floor(np.log10(np.abs(error)))
@@ -75,12 +111,12 @@ def format_with_error(value, error):
     # Redondear valor al mismo orden de magnitud del error
     value_rounded = np.round(value / error_rounded) * error_rounded
     
-    return f"{value:.6e} ± {error_rounded:.2e}"
+    return f"{value:.6e} +/- {error_rounded:.2e}"
 
 print("\nCargando datos...")
 data_list = [pd.read_csv(f"{nombre}.csv") for nombre in ARCHIVOS]
 for nombre in ARCHIVOS:
-    print(f"  → {nombre}.csv")
+    print(f"  - {nombre}.csv")
 
 # Combinar, eliminar duplicados y ordenar
 df_merged = pd.concat(data_list, ignore_index=True)
@@ -161,12 +197,12 @@ errors_mag = calculate_errors(result_mag, p_mag)
 err_R_mag, err_L_mag, err_C_mag, err_C2_mag, err_Cr_mag = errors_mag
 
 print(f"\nParámetros obtenidos para la trasferencia:")
-print(f"  R   = {format_with_error(R_mag, err_R_mag)} Ω")
+print(f"  R   = {format_with_error(R_mag, err_R_mag)} Ohm")
 print(f"  L   = {format_with_error(L_mag, err_L_mag)} H")
 print(f"  C   = {format_with_error(C_mag, err_C_mag)} F")
 print(f"  C2  = {format_with_error(C2_mag, err_C2_mag)} F")
 print(f"  Cr  = {format_with_error(Cr_mag, err_Cr_mag)} F")
-print(f"  Rr  = {R_r:.8e} Ω (fijo)")
+print(f"  Rr  = {R_r:.8e} Ohm (fijo)")
 
 T_mag_fit = transfer_magnitude(omega, *p_mag)
 phi_mag_fit = transfer_phase(omega, *p_mag)
@@ -193,12 +229,12 @@ errors_joint = calculate_errors(result_joint, p_joint)
 err_R_fit, err_L_fit, err_C_fit, err_C2_fit, err_Cr_fit = errors_joint
 
 print(f"\nParámetros obtenidos (ajuste conjunto):")
-print(f"  R   = {format_with_error(R_fit, err_R_fit)} Ω")
+print(f"  R   = {format_with_error(R_fit, err_R_fit)} Ohm")
 print(f"  L   = {format_with_error(L_fit, err_L_fit)} H")
 print(f"  C   = {format_with_error(C_fit, err_C_fit)} F")
 print(f"  C2  = {format_with_error(C2_fit, err_C2_fit)} F")
 print(f"  Cr  = {format_with_error(Cr_fit, err_Cr_fit)} F")
-print(f"  Rr  = {R_r:.8e} Ω (fijo)")
+print(f"  Rr  = {R_r:.8e} Ohm (fijo)")
 
 T_fit = transfer_magnitude(omega, *p_joint)
 phi_fit = transfer_phase(omega, *p_joint)
@@ -219,20 +255,72 @@ f_anti = 1 / (2 * np.pi * np.sqrt(L_fit * C_eq))  # Frecuencia de antiresonancia
 print(f"\nFrecuencia de resonancia (LC) : {f0:.4f} Hz")
 print(f"Frecuencia de antiresonancia  : {f_anti:.4f} Hz")
 
-# ============================================================
-# INCERTIDUMBRES SR830 (Stanford Research Systems)
-# ============================================================
-# Especificaciones típicas:
-# - Amplitud: 0.5% + 0.1% del fondo de escala
-# - Fase: 0.1° + 0.02° × |desviación de fase|
-
-# Incertidumbres de magnitud (amplitud)
-# Usando 1% como error relativo típico
 err_transf = 0.01 * transf  # 1% de la lectura
 
 # Incertidumbres de fase (en grados)
 # Usando 0.2° como error típico
 err_fase_deg = 0.2 * np.ones_like(fase_deg)  # 0.2 grados constante
+
+R2_VALOR = 10e3
+
+idx_max = np.argmax(transf)
+idx_min = np.argmin(transf)
+
+fs_est = frec[idx_max]
+fp_est = frec[idx_min]
+T_max = transf[idx_max]
+
+T_base = (transf[0] + transf[-1]) / 2.0
+f_base = (frec[0] + frec[-1]) / 2.0
+
+C2_0_farads = T_base / (2 * np.pi * f_base * R2_VALOR)
+C_0_farads = C2_0_farads * ((fp_est / fs_est)**2 - 1.0)
+L_0_henrys = 1.0 / ((2 * np.pi * fs_est)**2 * C_0_farads)
+R_0_ohms = R2_VALOR * ((1.0 / T_max) - 1.0)
+
+p0 = [
+    R_0_ohms,           # R en Ω
+    L_0_henrys,         # L en H
+    C_0_farads * 1e12,  # C en pF
+    C2_0_farads * 1e12  # C2 en pF
+]
+
+# Cotas ampliadas para permitir L ~ 500H y C2 ~ pF
+limites_inf = [1.0,   1.0,    1e-6, 1e-3]
+limites_sup = [1e6, 5000.0, 100.0,  1000.0]
+
+popt, pcov = curve_fit(
+    lambda f, R, L, C, C2: modelo_log(f, R, L, C, C2, R2_val=R2_VALOR),
+    frec,
+    np.log10(transf), # Ajuste sobre log10
+    p0=p0,
+    bounds=(limites_inf, limites_sup),
+    maxfev=100000
+)
+
+R_fit, L_fit, C_fit_pF, C2_fit_pF = popt
+errores = np.sqrt(np.diag(pcov))
+
+print("--- PARÁMETROS OPTIMIZADOS ---")
+print(f"R  = {R_fit:.4f} +/- {errores[0]:.4f} Ohm")
+print(f"L  = {L_fit:.4f} +/- {errores[1]:.4f} H")
+print(f"C  = {C_fit_pF:.6f} +/- {errores[2]:.6f} pF")
+print(f"C2 = {C2_fit_pF:.4f} +/- {errores[3]:.4f} pF")
+
+f_fit = np.linspace(np.min(frec), np.max(frec), 5000)
+
+log_T_fit = modelo_log(f_fit, *popt, R2_val=R2_VALOR)
+T_fit = 10**log_T_fit # Revertimos el logaritmo para graficar
+fase_fit = modelo_fase(f_fit, *popt, R2_val=R2_VALOR)
+
+# Evaluar el modelo en los puntos de datos original para los residuos
+T_fit_data = modelo_log(frec, *popt, R2_val=R2_VALOR)
+T_fit_data = 10**T_fit_data
+fase_fit_data = modelo_fase(frec, *popt, R2_val=R2_VALOR)
+
+error_fase_fit = fase_rad - fase_fit_data
+error_fase_fit_deg = np.degrees(error_fase_fit)
+error_transf_fit = transf - T_fit_data
 
 fig = plt.figure(figsize=(25, 6))
 gs = fig.add_gridspec(2, 2, height_ratios=[3, 1], width_ratios=[2, 2],hspace=0.1, wspace=0.2, left=0.06, right=0.95)
@@ -245,38 +333,45 @@ ax_phase = fig.add_subplot(gs[0, 1])
 ax_phase_res = fig.add_subplot(gs[1, 1], sharex=ax_phase)
 
 # --- MAGNITUD (con barras de error) ---
-ax_mag.errorbar(frec, transf, yerr=err_transf, fmt='o', color='b', 
-                ecolor='b', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos SR830')
-ax_mag.plot(frec, T_mag_fit, color='k', linewidth=2, label='Ajuste transferencia \n (modelo alternativo)')
+ax_mag.errorbar(frec, transf, yerr=err_transf, fmt='o', color='grey', 
+                ecolor='grey', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos SR830')
+ax_mag.plot(frec, T_mag_fit, color='b', linewidth=2, label='Ajuste transferencia \n (modelo alternativo)')
+ax_mag.plot(f_fit, T_fit, color='r', linestyle='--', linewidth=2, label='Ajuste transferencia \n (modelo original)')
 ax_mag.set_yscale('log')
 ax_mag.set_ylabel('Transferencia')
 ax_mag.grid(True, which='both', linestyle='--', alpha=0.5)
-ax_mag.set_xlim(49800, 50800)
-ax_mag.axvline(f0, color='g', linestyle='--', linewidth=2, label=f'Resonancia: {f0:.2f} Hz')
-ax_mag.axvline(f_anti, color='m', linestyle='--', linewidth=2, label=f'Antiresonancia: {f_anti:.2f} Hz')
+ax_mag.set_xlim(50000, 50400)
+ax_mag.axvline(f0, color='grey', linestyle='--', linewidth=2, label=f'Resonancia: {f0:.2f} Hz')
+ax_mag.axvline(f_anti, color='k', linestyle='--', linewidth=2, label=f'Antiresonancia: {f_anti:.2f} Hz')
 ax_mag.legend()
 
 # --- RESIDUOS MAGNITUD ---
 ax_mag_res.errorbar(frec, mag_residuals, yerr=err_transf, fmt='o', color='b', 
                     ecolor='b', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
+ax_mag_res.errorbar(frec, error_transf_fit, yerr=err_transf, fmt='o', color='r', 
+                    ecolor='r', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
 ax_mag_res.axhline(0, color='k', linestyle='--', linewidth=1)
 ax_mag_res.set_xlabel('Frecuencia (Hz)')
 ax_mag_res.set_ylabel('Residuo')
 ax_mag_res.grid(True, linestyle='--', alpha=0.5)
+ax_mag_res.set_xlim(50000, 50400)
 
 # --- FASE (con barras de error) ---
-ax_phase.errorbar(frec, fase_deg, yerr=err_fase_deg, fmt='o', color='r', 
-                  ecolor='r', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos SR830')
-ax_phase.plot(frec, np.rad2deg(phi_fit), color='k', linestyle='-', linewidth=2, label='Ajuste de fase \n (modelo alternativo)')
+ax_phase.errorbar(frec, fase_deg, yerr=err_fase_deg, fmt='o', color='grey', 
+                  ecolor='grey', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos SR830')
+ax_phase.plot(frec, np.rad2deg(phi_fit), color='b', linestyle='-', linewidth=2, label='Ajuste de fase \n (modelo alternativo)')
+ax_phase.plot(f_fit, np.rad2deg(fase_fit), color='r', linestyle='--', linewidth=2, label='Ajuste de fase \n (modelo original)')
 ax_phase.set_ylabel('Fase (grados)')
 ax_phase.set_xlim(49800, 50800)
 ax_phase.grid(True, linestyle='--', alpha=0.5)
-ax_phase.axvline(f0, color='g', linestyle='--', linewidth=2, label=f'Resonancia: {f0:.2f} Hz')
-ax_phase.axvline(f_anti, color='m', linestyle='--', linewidth=2, label=f'Antiresonancia: {f_anti:.2f} Hz')
+ax_phase.axvline(f0, color='grey', linestyle='--', linewidth=2, label=f'Resonancia: {f0:.2f} Hz')
+ax_phase.axvline(f_anti, color='k', linestyle='--', linewidth=2, label=f'Antiresonancia: {f_anti:.2f} Hz')
 ax_phase.legend()
 
 # --- RESIDUOS FASE ---
-ax_phase_res.errorbar(frec, phase_residuals_deg, yerr=err_fase_deg, fmt='o', color='r', 
+ax_phase_res.errorbar(frec, phase_residuals_deg, yerr=err_fase_deg, fmt='o', color='b', 
+                      ecolor='b', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
+ax_phase_res.errorbar(frec, error_fase_fit_deg, yerr=err_fase_deg, fmt='o', color='r', 
                       ecolor='r', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
 ax_phase_res.axhline(0, color='k', linestyle='--', linewidth=1)
 ax_phase_res.set_xlabel('Frecuencia (Hz)')
