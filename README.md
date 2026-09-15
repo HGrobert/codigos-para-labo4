@@ -1,10 +1,9 @@
-ÚLTIMOS RESULTADOS/AJUSTES
-OSCILOSCOPIO
+ÚLTIMOS RESULTADOS/AJUSTES <br>
+OSCILOSCOPIO <br>
 
-<img width="1200" height="600" alt="Mediciones y ajuste con osciloscopio" src="https://github.com/user-attachments/assets/3663c519-43dd-4cab-a2d9-1add70bf7b64" />
-LOCKIN
-
-<img width="637" height="603" alt="Solo mediciones lockin" src="https://github.com/user-attachments/assets/ed8ccf7a-8eb8-4d59-bec0-0d5f942fe9ec" />
+<img width="1200" height="600" alt="Mediciones y ajuste con osciloscopio" src="https://github.com/user-attachments/assets/3663c519-43dd-4cab-a2d9-1add70bf7b64" /><br>
+LOCKIN <br>
+<img width="1280" height="612" alt="Ajuste modelo alternativo lockin" src="https://github.com/user-attachments/assets/e8bf42a7-8b65-4ef4-af4e-c7a26b334663" /><br>
 
 Una pequeña guia de mis archivos:
 
