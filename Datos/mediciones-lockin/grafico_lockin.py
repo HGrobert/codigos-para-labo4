@@ -113,6 +113,12 @@ def format_with_error(value, error):
     
     return f"{value:.6e} +/- {error_rounded:.2e}"
 
+def format_two_significant(value):
+    """Formatea un valor con dos cifras significativas."""
+    if np.isinf(value) or np.isnan(value):
+        return "infinito"
+    return f"{value:.2g}"
+
 print("\nCargando datos...")
 data_list = [pd.read_csv(f"{nombre}.csv") for nombre in ARCHIVOS]
 for nombre in ARCHIVOS:
@@ -317,13 +323,31 @@ fase_fit = modelo_fase(f_fit, *popt, R2_val=R2_VALOR)
 T_fit_data = modelo_log(frec, *popt, R2_val=R2_VALOR)
 T_fit_data = 10**T_fit_data
 fase_fit_data = modelo_fase(frec, *popt, R2_val=R2_VALOR)
+fase_alternativa_deg = np.rad2deg(phi_fit)
+fase_original_deg = np.rad2deg(fase_fit)
+fase_alternativa_asintotica = np.mean(fase_alternativa_deg[-100:])
+fase_original_asintotica = np.mean(fase_original_deg[-100:])
+fase_alternativa_minima = np.min(fase_alternativa_deg)
+fase_original_minima = np.min(fase_original_deg)
 
 error_fase_fit = fase_rad - fase_fit_data
 error_fase_fit_deg = np.degrees(error_fase_fit)
 error_transf_fit = transf - T_fit_data
+limite_inferior = 50000
+limite_superior = 50400
+paso_frecuencia = (f_anti - f0) / 4
+primer_tick = f0 - np.ceil((f0 - limite_inferior) / paso_frecuencia) * paso_frecuencia
+ultimo_tick = f0 + np.ceil((limite_superior - f0) / paso_frecuencia) * paso_frecuencia
+frecuencias_marcadas = np.arange(
+    primer_tick,
+    ultimo_tick + paso_frecuencia / 2,
+    paso_frecuencia,
+)
+etiquetas_frecuencia = [f"{frecuencia / 1000:.2f}" for frecuencia in frecuencias_marcadas]
 
-fig = plt.figure(figsize=(25, 6))
-gs = fig.add_gridspec(2, 2, height_ratios=[3, 1], width_ratios=[2, 2],hspace=0.1, wspace=0.2, left=0.06, right=0.95)
+fig = plt.figure(figsize=(15, 6))
+gs = fig.add_gridspec(2, 2, height_ratios=[3, 1], width_ratios=[2, 2],
+                      hspace=0.2, wspace=0.2, left=0.06, right=0.95)
 
 # Crear subplots con gridspec
 ax_mag = fig.add_subplot(gs[0, 0])
@@ -334,49 +358,99 @@ ax_phase_res = fig.add_subplot(gs[1, 1], sharex=ax_phase)
 
 # --- MAGNITUD (con barras de error) ---
 ax_mag.errorbar(frec, transf, yerr=err_transf, fmt='o', color='grey', 
-                ecolor='grey', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos SR830')
-ax_mag.plot(frec, T_mag_fit, color='b', linewidth=2, label='Ajuste transferencia \n (modelo alternativo)')
-ax_mag.plot(f_fit, T_fit, color='r', linestyle='--', linewidth=2, label='Ajuste transferencia \n (modelo original)')
+                ecolor='grey', markerfacecolor='none', alpha=0.8, elinewidth=1, capsize=3, markersize=4, label='Datos lock-in')
+ax_mag.plot(frec, T_mag_fit, color='rebeccapurple', linewidth=2, label='Modelo real')
+ax_mag.plot(f_fit, T_fit, color='indianred', linestyle='--', linewidth=2, label='Modelo ideal')
 ax_mag.set_yscale('log')
 ax_mag.set_ylabel('Transferencia')
 ax_mag.grid(True, which='both', linestyle='--', alpha=0.5)
-ax_mag.set_xlim(50000, 50400)
-ax_mag.axvline(f0, color='grey', linestyle='--', linewidth=2, label=f'Resonancia: {f0:.2f} Hz')
-ax_mag.axvline(f_anti, color='k', linestyle='--', linewidth=2, label=f'Antiresonancia: {f_anti:.2f} Hz')
+ax_mag.set_xlim(limite_inferior, limite_superior)
+ax_mag.axvline(f0, color='k', linestyle='--', linewidth=2)
+ax_mag.axvline(f_anti, color='k', linestyle='--', linewidth=2)
+ax_mag.annotate(r'Resonancia', xy=(f0, 0.95), xycoords=('data', 'axes fraction'),
+                xytext=(f0, 1.08), textcoords=('data', 'axes fraction'),
+                ha='center', va='bottom', color='k',
+                arrowprops=dict(arrowstyle='->', color='k'))
+ax_mag.annotate(r'Antiresonancia', xy=(f_anti, 0.95), xycoords=('data', 'axes fraction'),
+                xytext=(f_anti, 1.08), textcoords=('data', 'axes fraction'),
+                ha='center', va='bottom', color='k',
+                arrowprops=dict(arrowstyle='->', color='k'))
+ax_mag.set_xticks(frecuencias_marcadas, labels=etiquetas_frecuencia)
+ax_mag.tick_params(axis='x', labelbottom=True)
 ax_mag.legend()
 
 # --- RESIDUOS MAGNITUD ---
-ax_mag_res.errorbar(frec, mag_residuals, yerr=err_transf, fmt='o', color='b', 
-                    ecolor='b', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
-ax_mag_res.errorbar(frec, error_transf_fit, yerr=err_transf, fmt='o', color='r', 
-                    ecolor='r', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
+ax_mag_res.errorbar(frec, mag_residuals, yerr=err_transf, fmt='o', color='rebeccapurple',
+                    ecolor='rebeccapurple', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
+ax_mag_res.errorbar(frec, error_transf_fit, yerr=err_transf, fmt='o', color='indianred',
+                    ecolor='indianred', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
 ax_mag_res.axhline(0, color='k', linestyle='--', linewidth=1)
-ax_mag_res.set_xlabel('Frecuencia (Hz)')
+ax_mag_res.set_xlabel('Frecuencia (kHz)')
 ax_mag_res.set_ylabel('Residuo')
 ax_mag_res.grid(True, linestyle='--', alpha=0.5)
 ax_mag_res.set_xlim(50000, 50400)
 
 # --- FASE (con barras de error) ---
 ax_phase.errorbar(frec, fase_deg, yerr=err_fase_deg, fmt='o', color='grey', 
-                  ecolor='grey', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos SR830')
-ax_phase.plot(frec, np.rad2deg(phi_fit), color='b', linestyle='-', linewidth=2, label='Ajuste de fase \n (modelo alternativo)')
-ax_phase.plot(f_fit, np.rad2deg(fase_fit), color='r', linestyle='--', linewidth=2, label='Ajuste de fase \n (modelo original)')
-ax_phase.set_ylabel('Fase (grados)')
-ax_phase.set_xlim(49800, 50800)
+                  ecolor='grey', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos lock-in')
+ax_phase.plot(frec, np.rad2deg(phi_fit), color='rebeccapurple', linestyle='-', linewidth=2, label='Modelo real')
+ax_phase.plot(f_fit, np.rad2deg(fase_fit), color='indianred', linestyle='--', linewidth=2, label='Modelo ideal')
+ax_phase.set_ylabel('Fase (°)')
+ax_phase.set_xlim(limite_inferior, limite_superior)
+ax_phase.set_ylim(-120, 100)
 ax_phase.grid(True, linestyle='--', alpha=0.5)
-ax_phase.axvline(f0, color='grey', linestyle='--', linewidth=2, label=f'Resonancia: {f0:.2f} Hz')
-ax_phase.axvline(f_anti, color='k', linestyle='--', linewidth=2, label=f'Antiresonancia: {f_anti:.2f} Hz')
-ax_phase.legend()
+ax_phase.axvline(f0, color='k', linestyle='--', linewidth=2)
+ax_phase.axvline(f_anti, color='k', linestyle='--', linewidth=2)
+ax_phase.annotate(r'Resonancia', xy=(f0, 0.95), xycoords=('data', 'axes fraction'),
+                  xytext=(f0, 1.08), textcoords=('data', 'axes fraction'),
+                  ha='center', va='bottom', color='k',
+                  arrowprops=dict(arrowstyle='->', color='k'))
+ax_phase.annotate(r'Antiresonancia', xy=(f_anti, 0.95), xycoords=('data', 'axes fraction'),
+                  xytext=(f_anti, 1.08), textcoords=('data', 'axes fraction'),
+                  ha='center', va='bottom', color='k',
+                  arrowprops=dict(arrowstyle='->', color='k'))
+ax_phase.axhline(fase_alternativa_asintotica, color='rebeccapurple', linestyle=':',
+                 linewidth=1.5)
+ax_phase.axhline(fase_original_asintotica, color='indianred', linestyle=':',
+                 linewidth=1.5)
+ax_phase.axhline(fase_alternativa_minima, color='rebeccapurple', linestyle=':',
+                 linewidth=1.2)
+ax_phase.axhline(fase_original_minima, color='indianred', linestyle=':',
+                 linewidth=1.2)
+ticks_fase = np.unique(np.round(np.concatenate([
+    ax_phase.get_yticks(),
+    [fase_alternativa_asintotica, fase_original_asintotica,
+     fase_alternativa_minima, fase_original_minima],
+])))
+ticks_fase = ticks_fase[~np.isclose(ticks_fase, 75)]
+ax_phase.set_yticks(ticks_fase)
+ax_phase.set_yticklabels([f'{valor:.1f}' for valor in ticks_fase])
+colores_ticks_fase = ['black'] * len(ticks_fase)
+for nivel, color in [
+    (fase_alternativa_asintotica, 'rebeccapurple'),
+    (fase_alternativa_minima, 'rebeccapurple'),
+    (fase_original_asintotica, 'indianred'),
+    (fase_original_minima, 'indianred'),
+]:
+    indices_nivel = np.flatnonzero(np.isclose(ticks_fase, np.round(nivel)))
+    for indice in indices_nivel:
+        colores_ticks_fase[indice] = color
+for etiqueta, color in zip(ax_phase.get_yticklabels(), colores_ticks_fase):
+    etiqueta.set_color(color)
+ax_phase.set_xticks(frecuencias_marcadas, labels=etiquetas_frecuencia)
+ax_phase.tick_params(axis='x', labelbottom=True)
+ax_phase.legend(loc='lower right', fontsize=10)
 
 # --- RESIDUOS FASE ---
-ax_phase_res.errorbar(frec, phase_residuals_deg, yerr=err_fase_deg, fmt='o', color='b', 
-                      ecolor='b', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
-ax_phase_res.errorbar(frec, error_fase_fit_deg, yerr=err_fase_deg, fmt='o', color='r', 
-                      ecolor='r', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
+ax_phase_res.errorbar(frec, phase_residuals_deg, yerr=err_fase_deg, fmt='o', color='rebeccapurple',
+                      ecolor='rebeccapurple', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
+ax_phase_res.errorbar(frec, error_fase_fit_deg, yerr=err_fase_deg, fmt='o', color='indianred',
+                      ecolor='indianred', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
 ax_phase_res.axhline(0, color='k', linestyle='--', linewidth=1)
-ax_phase_res.set_xlabel('Frecuencia (Hz)')
+ax_phase_res.set_xlabel('Frecuencia (kHz)')
 ax_phase_res.set_ylabel('Residuo (°)')
 ax_phase_res.grid(True, linestyle='--', alpha=0.5)
 
-plt.tight_layout()
+fig.subplots_adjust(bottom=0.15)
+fig.savefig('grafico_lockin.png', dpi=400, bbox_inches='tight')
 plt.show()
