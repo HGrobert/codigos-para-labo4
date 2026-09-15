@@ -3,7 +3,7 @@ OSCILOSCOPIO <br>
 
 <img width="1200" height="600" alt="Mediciones y ajuste con osciloscopio" src="https://github.com/user-attachments/assets/3663c519-43dd-4cab-a2d9-1add70bf7b64" /><br>
 LOCKIN <br>
-<img width="1280" height="612" alt="Ajuste modelo alternativo lockin" src="https://github.com/user-attachments/assets/e8bf42a7-8b65-4ef4-af4e-c7a26b334663" /><br>
+<img width="1280" height="612" alt="Comparativa de modelos" src="https://github.com/user-attachments/assets/2a038b14-37c1-46a0-80d5-a97ad8cc0446" /><br>
 
 Una pequeña guia de mis archivos:
 
