@@ -104,7 +104,7 @@ fase_fit = modelo_fase(f_fit, *popt, R2_val=R2_VALOR)
 # Convertir fase a grados
 fase_relativa_grados = np.degrees(fase_relativa)
 OFFSET_FASE_DEG = -25.0 
-fase_fit_grados = np.degrees(fase_fit) + OFFSET_FASE_DEG
+fase_fit_grados = np.degrees(fase_fit)
 
 # Crear figura con dual axis
 fig, ax1 = plt.subplots(figsize=(12, 6))
@@ -113,8 +113,8 @@ fig, ax1 = plt.subplots(figsize=(12, 6))
 color_mag = 'b'
 ax1.set_xlabel('Frecuencia [Hz]', fontsize=14)
 ax1.set_ylabel('Transferencia', color=color_mag, fontsize=14)
-ax1.scatter(frecuencia, transferencia, color=color_mag, s=15, alpha=0.6, label='Datos (Transferencia)')
-ax1.plot(f_fit, T_fit, color=color_mag, linewidth=2, label='Ajuste (Transferenica)')
+ax1.scatter(frecuencia, transferencia, color=color_mag, s=15, alpha=0.6, label='Datos (Transferencia)', facecolors='none')
+ax1.plot(f_fit, T_fit, color='k',linestyle='--', linewidth=2, label='Ajuste (Transferenica)')
 ax1.set_yscale('log')
 ax1.grid(True, which='both', linestyle='--', linewidth=0.5)
 ax1.tick_params(axis='y', labelcolor=color_mag, labelsize=14)
@@ -122,14 +122,17 @@ ax1.tick_params(axis='x', labelsize=14)
 
 ax2 = ax1.twinx()
 color_fase = 'r'
-ax2.set_ylabel('Fase relativa [grados]', color=color_fase, fontsize=14)
-ax2.scatter(frecuencia, fase_relativa_grados, color=color_fase, s=15, alpha=0.6, label='Datos (Fase)', marker='s')
-ax2.plot(f_fit, fase_fit_grados, color=color_fase, linewidth=2, label='Ajuste BVD (Fase)')
+ax2.set_ylabel('Fase (grados)', color=color_fase, fontsize=14)
+ax2.scatter(frecuencia, fase_relativa_grados, color=color_fase, s=15, alpha=0.6, label='Datos (Fase)', marker='s', facecolors='none')
+ax2.plot(f_fit, fase_fit_grados, color='k',linestyle='-', linewidth=2, label='Ajuste BVD (Fase)')
 ax2.tick_params(axis='y', labelcolor=color_fase, labelsize=14)
+ax2.axhline(90, color='r', linestyle=':', linewidth=1)
+ax2.axhline(-90, color='r', linestyle=':', linewidth=1)
 
 lines1, labels1 = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
-ax1.legend(lines1 + lines2, labels1 + labels2, loc='lower right', fontsize=18)
-
+ax1.legend(lines1 + lines2, labels1 + labels2, loc='lower right', fontsize=12)
+plt.xlim(50000, 50400)
 plt.tight_layout()
+fig.savefig('grafico_osciloscopio.png', dpi=400, bbox_inches='tight')
 plt.show()

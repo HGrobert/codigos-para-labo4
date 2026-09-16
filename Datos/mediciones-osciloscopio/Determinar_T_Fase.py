@@ -1,16 +1,19 @@
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
+from scipy.signal import savgol_filter
 import matplotlib.pyplot as plt
 
 # ============================================================
 # CONFIGURACIÓN
 # ============================================================
 
-ARCHIVO_ENTRADA = "Datos_señales.csv"
-ARCHIVO_SALIDA = "Resultados_transferenciaBis.csv"
+ARCHIVO_ENTRADA = "transf_1.csv"
+ARCHIVO_SALIDA = "Resultados_transf_1.csv"
 
 N_MUESTRAS = 2500
+VENTANA_FILTRO = 51
+GRADO_FILTRO = 3
 
 # ============================================================
 # FUNCIÓN DE AJUSTE
@@ -22,6 +25,14 @@ def sinusoidal(t, A, f, phi, offset):
         V(t) = A * sin(2*pi*f*t + phi) + offset
     """
     return A * np.sin(2 * np.pi * f * t + phi) + offset
+
+
+def suavizar_senal(V):
+    """Reduce el ruido sin eliminar la forma de onda antes del ajuste."""
+    ventana = min(VENTANA_FILTRO, len(V) if len(V) % 2 else len(V) - 1)
+    if ventana <= GRADO_FILTRO:
+        return V.copy()
+    return savgol_filter(V, window_length=ventana, polyorder=GRADO_FILTRO)
 
 
 def ajustar_seno(t, V, frecuencia):
@@ -76,12 +87,14 @@ for i in range(n_bloques):
     # --- CH1 ---
     t1 = bloque["Tiempo CH1"].to_numpy()
     v1 = bloque["V1"].to_numpy()
-    A1, phi1, offset1 = ajustar_seno(t1, v1, frecuencia)
+    v1_filtrada = suavizar_senal(v1)
+    A1, phi1, offset1 = ajustar_seno(t1, v1_filtrada, frecuencia)
 
     # --- CH2 ---
     t2 = bloque["Tiempo CH2"].to_numpy()
     v2 = bloque["V2"].to_numpy()
-    A2, phi2, offset2 = ajustar_seno(t2, v2, frecuencia)
+    v2_filtrada = suavizar_senal(v2)
+    A2, phi2, offset2 = ajustar_seno(t2, v2_filtrada, frecuencia)
 
     # --- TRANSFERENCIA Y FASE ---
     transferencia = A2 / A1 if A1 != 0 else np.nan
