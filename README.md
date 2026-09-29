@@ -1,7 +1,7 @@
 ÚLTIMOS RESULTADOS/AJUSTES <br>
 OSCILOSCOPIO <br>
 
-<img width="1200" height="600" alt="Mediciones y ajuste con osciloscopio" src="https://github.com/user-attachments/assets/3663c519-43dd-4cab-a2d9-1add70bf7b64" /><br>
+<img width="4753" height="2360" alt="grafico_osciloscopio" src="https://github.com/user-attachments/assets/bdce1b9b-0f7a-4315-ac68-e9fba6a5afb0" /><br>
 LOCKIN <br>
 <img width="1280" height="612" alt="Comparativa de modelos" src="https://github.com/user-attachments/assets/2a038b14-37c1-46a0-80d5-a97ad8cc0446" /><br>
 
