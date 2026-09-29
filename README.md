@@ -18,3 +18,5 @@ Lo importante de la carpeta 'mediciones-lockin' es el único archivo con código
 de trasferencia y fase... También falta depurar teóricamente en qué variable (o mezcla de ellas) está guardada la información 
 física de la la transferencia (me refiero a si está en R, X, Y o alguna combinación). La fase ya sabemos que la medimos perfectamente
 y la información se guardó en la variable theta.
+
+ACTUALIZACIÓN: Se agregaron mediciones y gráficos de modos del piezoeléctrico.

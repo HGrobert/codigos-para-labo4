@@ -276,6 +276,34 @@ fs_est = frec[idx_max]
 fp_est = frec[idx_min]
 T_max = transf[idx_max]
 
+nivel_media_potencia = T_max / np.sqrt(2)
+indices_izquierda = np.flatnonzero(transf[:idx_max] <= nivel_media_potencia)
+indices_derecha = np.flatnonzero(transf[idx_max + 1:] <= nivel_media_potencia)
+
+if len(indices_izquierda) and len(indices_derecha):
+    indice_izquierda = int(indices_izquierda[-1])
+    indice_derecha = int(idx_max + 1 + indices_derecha[0])
+    frecuencia_inferior = frec[indice_izquierda] + (
+        (nivel_media_potencia - transf[indice_izquierda])
+        * (frec[indice_izquierda + 1] - frec[indice_izquierda])
+        / (transf[indice_izquierda + 1] - transf[indice_izquierda])
+    )
+    frecuencia_superior = frec[indice_derecha - 1] + (
+        (nivel_media_potencia - transf[indice_derecha - 1])
+        * (frec[indice_derecha] - frec[indice_derecha - 1])
+        / (transf[indice_derecha] - transf[indice_derecha - 1])
+    )
+    ancho_media_potencia = frecuencia_superior - frecuencia_inferior
+    factor_calidad = fs_est / ancho_media_potencia
+    print("\nEstimación del factor de calidad por ancho de banda (-3 dB):")
+    print(f"  Nivel al 70.7% de transferencia = {nivel_media_potencia:.6g}")
+    print(f"  Cruce inferior = {frecuencia_inferior:.4f} Hz")
+    print(f"  Cruce superior = {frecuencia_superior:.4f} Hz")
+    print(f"  Ancho de banda = {ancho_media_potencia:.4f} Hz")
+    print(f"  Q = f_pico / ancho de banda = {factor_calidad:.4g}")
+else:
+    print("\nNo se pudo estimar Q: falta un cruce al 70.7% a uno de los lados del pico.")
+
 T_base = (transf[0] + transf[-1]) / 2.0
 f_base = (frec[0] + frec[-1]) / 2.0
 
@@ -345,77 +373,53 @@ frecuencias_marcadas = np.arange(
 )
 etiquetas_frecuencia = [f"{frecuencia / 1000:.2f}" for frecuencia in frecuencias_marcadas]
 
-fig = plt.figure(figsize=(15, 6))
-gs = fig.add_gridspec(2, 2, height_ratios=[3, 1], width_ratios=[2, 2],
-                      hspace=0.2, wspace=0.2, left=0.06, right=0.95)
+fig = plt.figure(figsize=(10, 6))
+gs = fig.add_gridspec(2, 1, hspace=0.2, top=0.90, bottom=0.11)
 
 # Crear subplots con gridspec
 ax_mag = fig.add_subplot(gs[0, 0])
-ax_mag_res = fig.add_subplot(gs[1, 0], sharex=ax_mag)
-
-ax_phase = fig.add_subplot(gs[0, 1])
-ax_phase_res = fig.add_subplot(gs[1, 1], sharex=ax_phase)
+ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
 
 # --- MAGNITUD (con barras de error) ---
 ax_mag.errorbar(frec, transf, yerr=err_transf, fmt='o', color='grey', 
                 ecolor='grey', markerfacecolor='none', alpha=0.8, elinewidth=1, capsize=3, markersize=4, label='Datos lock-in')
-ax_mag.plot(frec, T_mag_fit, color='rebeccapurple', linewidth=2, label='Modelo real')
-ax_mag.plot(f_fit, T_fit, color='indianred', linestyle='--', linewidth=2, label='Modelo ideal')
+ax_mag.plot(frec, T_mag_fit, color='red', linewidth=2, label='Modelo real')
+ax_mag.plot(f_fit, T_fit, color='blue', linestyle='--', linewidth=2, label='Modelo ideal')
 ax_mag.set_yscale('log')
-ax_mag.set_ylabel('Transferencia')
+ax_mag.set_ylabel('Transferencia', fontsize=14, fontweight='bold')
 ax_mag.grid(True, which='both', linestyle='--', alpha=0.5)
 ax_mag.set_xlim(limite_inferior, limite_superior)
 ax_mag.axvline(f0, color='k', linestyle='--', linewidth=2)
 ax_mag.axvline(f_anti, color='k', linestyle='--', linewidth=2)
 ax_mag.annotate(r'Resonancia', xy=(f0, 0.95), xycoords=('data', 'axes fraction'),
                 xytext=(f0, 1.08), textcoords=('data', 'axes fraction'),
-                ha='center', va='bottom', color='k',
+                ha='center', va='bottom', color='k', fontsize=12, fontweight='bold',
                 arrowprops=dict(arrowstyle='->', color='k'))
 ax_mag.annotate(r'Antiresonancia', xy=(f_anti, 0.95), xycoords=('data', 'axes fraction'),
                 xytext=(f_anti, 1.08), textcoords=('data', 'axes fraction'),
-                ha='center', va='bottom', color='k',
+                ha='center', va='bottom', color='k', fontsize=12, fontweight='bold',
                 arrowprops=dict(arrowstyle='->', color='k'))
-ax_mag.set_xticks(frecuencias_marcadas, labels=etiquetas_frecuencia)
-ax_mag.tick_params(axis='x', labelbottom=True)
-ax_mag.legend()
-
-# --- RESIDUOS MAGNITUD ---
-ax_mag_res.errorbar(frec, mag_residuals, yerr=err_transf, fmt='o', color='rebeccapurple',
-                    ecolor='rebeccapurple', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
-ax_mag_res.errorbar(frec, error_transf_fit, yerr=err_transf, fmt='o', color='indianred',
-                    ecolor='indianred', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
-ax_mag_res.axhline(0, color='k', linestyle='--', linewidth=1)
-ax_mag_res.set_xlabel('Frecuencia (kHz)')
-ax_mag_res.set_ylabel('Residuo')
-ax_mag_res.grid(True, linestyle='--', alpha=0.5)
-ax_mag_res.set_xlim(50000, 50400)
+leyenda_transferencia = ax_mag.legend(fontsize=12)
+plt.setp(leyenda_transferencia.get_texts(), fontweight='bold')
 
 # --- FASE (con barras de error) ---
 ax_phase.errorbar(frec, fase_deg, yerr=err_fase_deg, fmt='o', color='grey', 
                   ecolor='grey', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4, label='Datos lock-in')
-ax_phase.plot(frec, np.rad2deg(phi_fit), color='rebeccapurple', linestyle='-', linewidth=2, label='Modelo real')
-ax_phase.plot(f_fit, np.rad2deg(fase_fit), color='indianred', linestyle='--', linewidth=2, label='Modelo ideal')
-ax_phase.set_ylabel('Fase (°)')
+ax_phase.plot(frec, np.rad2deg(phi_fit), color='red', linestyle='-', linewidth=2, label='Modelo real')
+ax_phase.plot(f_fit, np.rad2deg(fase_fit), color='blue', linestyle='--', linewidth=2, label='Modelo ideal')
+ax_phase.set_ylabel('Fase (°)', fontsize=14, fontweight='bold')
 ax_phase.set_xlim(limite_inferior, limite_superior)
 ax_phase.set_ylim(-120, 100)
 ax_phase.grid(True, linestyle='--', alpha=0.5)
 ax_phase.axvline(f0, color='k', linestyle='--', linewidth=2)
 ax_phase.axvline(f_anti, color='k', linestyle='--', linewidth=2)
-ax_phase.annotate(r'Resonancia', xy=(f0, 0.95), xycoords=('data', 'axes fraction'),
-                  xytext=(f0, 1.08), textcoords=('data', 'axes fraction'),
-                  ha='center', va='bottom', color='k',
-                  arrowprops=dict(arrowstyle='->', color='k'))
-ax_phase.annotate(r'Antiresonancia', xy=(f_anti, 0.95), xycoords=('data', 'axes fraction'),
-                  xytext=(f_anti, 1.08), textcoords=('data', 'axes fraction'),
-                  ha='center', va='bottom', color='k',
-                  arrowprops=dict(arrowstyle='->', color='k'))
-ax_phase.axhline(fase_alternativa_asintotica, color='rebeccapurple', linestyle=':',
+ax_phase.axhline(fase_alternativa_asintotica, color='red', linestyle=':',
                  linewidth=1.5)
-ax_phase.axhline(fase_original_asintotica, color='indianred', linestyle=':',
+ax_phase.axhline(fase_original_asintotica, color='blue', linestyle=':',
                  linewidth=1.5)
-ax_phase.axhline(fase_alternativa_minima, color='rebeccapurple', linestyle=':',
+ax_phase.axhline(fase_alternativa_minima, color='red', linestyle=':',
                  linewidth=1.2)
-ax_phase.axhline(fase_original_minima, color='indianred', linestyle=':',
+ax_phase.axhline(fase_original_minima, color='blue', linestyle=':',
                  linewidth=1.2)
 ticks_fase = np.unique(np.round(np.concatenate([
     ax_phase.get_yticks(),
@@ -424,33 +428,54 @@ ticks_fase = np.unique(np.round(np.concatenate([
 ])))
 ticks_fase = ticks_fase[~np.isclose(ticks_fase, 75)]
 ax_phase.set_yticks(ticks_fase)
-ax_phase.set_yticklabels([f'{valor:.1f}' for valor in ticks_fase])
 colores_ticks_fase = ['black'] * len(ticks_fase)
 for nivel, color in [
-    (fase_alternativa_asintotica, 'rebeccapurple'),
-    (fase_alternativa_minima, 'rebeccapurple'),
-    (fase_original_asintotica, 'indianred'),
-    (fase_original_minima, 'indianred'),
+    (fase_alternativa_asintotica, 'blue'),
+    (fase_alternativa_minima, 'blue'),
+    (fase_original_asintotica, 'red'),
+    (fase_original_minima, 'red'),
 ]:
     indices_nivel = np.flatnonzero(np.isclose(ticks_fase, np.round(nivel)))
     for indice in indices_nivel:
         colores_ticks_fase[indice] = color
+ax_phase.set_yticklabels([
+    f'{valor:.1f}' if color == 'black' else ''
+    for valor, color in zip(ticks_fase, colores_ticks_fase)
+])
 for etiqueta, color in zip(ax_phase.get_yticklabels(), colores_ticks_fase):
     etiqueta.set_color(color)
+indices_derecha = [
+    indice for indice, color in enumerate(colores_ticks_fase)
+    if color != 'black'
+]
+
+ax_phase_derecha = ax_phase.twinx()
+ax_phase_derecha.set_ylim(ax_phase.get_ylim())
+ax_phase_derecha.set_yticks(ticks_fase[indices_derecha])
+ax_phase_derecha.set_yticklabels(
+    [f'{ticks_fase[indice]:.1f}' for indice in indices_derecha]
+)
+for etiqueta, indice in zip(
+    ax_phase_derecha.get_yticklabels(), indices_derecha
+):
+    etiqueta.set_color(colores_ticks_fase[indice])
+ax_phase_derecha.tick_params(axis='y', labelsize=12, right=True, left=False)
+ax_phase_derecha.tick_params(axis='x', bottom=False, labelbottom=False)
+ax_phase_derecha.grid(False)
+
 ax_phase.set_xticks(frecuencias_marcadas, labels=etiquetas_frecuencia)
 ax_phase.tick_params(axis='x', labelbottom=True)
-ax_phase.legend(loc='lower right', fontsize=10)
+ax_phase.set_xlabel('Frecuencia (kHz)', fontsize=14, fontweight='bold')
+for axis in (ax_mag, ax_phase, ax_phase_derecha):
+    axis.minorticks_on()
+    axis.tick_params(axis='both', which='major', length=8, width=1.5)
+    axis.tick_params(axis='both', which='minor', length=5, width=1.2)
 
-# --- RESIDUOS FASE ---
-ax_phase_res.errorbar(frec, phase_residuals_deg, yerr=err_fase_deg, fmt='o', color='rebeccapurple',
-                      ecolor='rebeccapurple', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
-ax_phase_res.errorbar(frec, error_fase_fit_deg, yerr=err_fase_deg, fmt='o', color='indianred',
-                      ecolor='indianred', markerfacecolor='none', alpha=0.6, elinewidth=1, capsize=3, markersize=4)
-ax_phase_res.axhline(0, color='k', linestyle='--', linewidth=1)
-ax_phase_res.set_xlabel('Frecuencia (kHz)')
-ax_phase_res.set_ylabel('Residuo (°)')
-ax_phase_res.grid(True, linestyle='--', alpha=0.5)
+for axis in (ax_mag, ax_phase):
+    axis.tick_params(axis='both', labelsize=12)
+    plt.setp(axis.get_xticklabels() + axis.get_yticklabels(), fontweight='bold')
 
 fig.subplots_adjust(bottom=0.15)
 fig.savefig('grafico_lockin.png', dpi=400, bbox_inches='tight')
 plt.show()
+print(len(frec))
